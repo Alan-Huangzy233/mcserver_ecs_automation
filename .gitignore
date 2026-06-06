@@ -1,0 +1,25 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+
+# Local generated files
+*.pem
+*.key
+*.log
+.ecr_uri
+.nlb_dns
+terraform-output.json
+
+# OS / editor files
+.DS_Store
+.vscode/
+.idea/
+
+# Python/cache just in case
+__pycache__/
+*.pyc

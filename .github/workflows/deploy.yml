@@ -1,0 +1,90 @@
+name: Deploy Minecraft ECS Server
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build and Deploy Minecraft Server
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check AWS secrets
+        id: check_secrets
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ] && \
+             [ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ] && \
+             [ -n "${{ secrets.AWS_SESSION_TOKEN }}" ] && \
+             [ -n "${{ secrets.AWS_REGION }}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "AWS secrets are not configured. Skipping deployment steps."
+          fi
+
+      - name: Configure AWS credentials
+        if: steps.check_secrets.outputs.configured == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install required tools
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nmap jq
+
+      - name: Set up Terraform
+        if: steps.check_secrets.outputs.configured == 'true'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.5
+          terraform_wrapper: false
+
+      - name: Check tool versions
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: |
+          aws --version
+          terraform -version
+          docker --version
+          nmap --version
+          jq --version
+
+      - name: Verify AWS identity
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: |
+          aws sts get-caller-identity
+
+      - name: Bootstrap ECR repository
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: |
+          ./scripts/01_bootstrap_ecr.sh
+
+      - name: Build and push Docker image
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: |
+          ./scripts/02_build_push.sh
+
+      - name: Deploy ECS, EFS, and NLB infrastructure
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: |
+          ./scripts/03_apply_infra.sh
+
+      - name: Test Minecraft server with nmap
+        if: steps.check_secrets.outputs.configured == 'true'
+        run: |
+          ./scripts/04_test.sh
