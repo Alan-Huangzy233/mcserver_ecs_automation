@@ -376,16 +376,6 @@ Do not run this script before grading unless the deployment no longer needs to b
 
 ---
 
-## Security Notes
-
-- AWS credentials are not stored in the repository.
-- `.gitignore` excludes Terraform state files, local generated files, and credential-like files.
-- The Minecraft port `25565` is public because users need to connect from the internet.
-- EFS only allows NFS traffic from the ECS task security group.
-- The ECS task uses the AWS Academy LabRole.
-
----
-
 ## Sources
 
 - Minecraft Java Server Download: https://www.minecraft.net/en-us/download/server
