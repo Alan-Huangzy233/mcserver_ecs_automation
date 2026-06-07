@@ -5,7 +5,6 @@ DATA_DIR="/data"
 SERVER_JAR="/opt/minecraft/server.jar"
 MEMORY="${MINECRAFT_MEMORY:-1024M}"
 PORT="${MINECRAFT_PORT:-25565}"
-MOTD="${MINECRAFT_MOTD:-Acme Corp Minecraft Server}"
 
 cd "$DATA_DIR"
 
@@ -13,17 +12,6 @@ if [ ! -f eula.txt ]; then
   echo "eula=true" > eula.txt
 fi
 
-if [ ! -f server.properties ]; then
-  cat > server.properties <<SERVERPROPERTIES
-server-port=${PORT}
-motd=${MOTD}
-enable-command-block=false
-online-mode=true
-difficulty=easy
-gamemode=survival
-max-players=20
-SERVERPROPERTIES
-fi
 
 PIPE="/tmp/minecraft.stdin"
 rm -f "$PIPE"
