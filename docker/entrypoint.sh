@@ -12,12 +12,21 @@ if [ ! -f eula.txt ]; then
   echo "eula=true" > eula.txt
 fi
 
+if [ ! -f server.properties ]; then
+  cat > server.properties <<SERVERPROPERTIES
+server-port=${PORT}
+enable-command-block=false
+online-mode=true
+difficulty=easy
+gamemode=survival
+max-players=20
+SERVERPROPERTIES
+fi
 
 PIPE="/tmp/minecraft.stdin"
 rm -f "$PIPE"
 mkfifo "$PIPE"
 
-# Keep the FIFO open so the Minecraft process does not exit from stdin EOF.
 exec 3<>"$PIPE"
 
 shutdown_server() {

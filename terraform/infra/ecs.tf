@@ -48,10 +48,6 @@ resource "aws_ecs_task_definition" "minecraft" {
         {
           name  = "MINECRAFT_PORT"
           value = tostring(var.minecraft_port)
-        },
-        {
-          name  = "MINECRAFT_MOTD"
-          value = "Acme Corp Minecraft Server"
         }
       ]
 
