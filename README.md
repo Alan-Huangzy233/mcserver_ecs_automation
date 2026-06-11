@@ -106,6 +106,23 @@ us-east-1
 
 ---
 
+
+## Windows User Note
+
+This project is mainly designed to be run from a Linux shell environment.
+
+For Windows users, I recommend using one of the following options:
+
+```text
+Option 1: Windows Subsystem for Linux (WSL) with Ubuntu
+Option 2: An Ubuntu virtual machine
+Option 3: A cloud-based Ubuntu instance
+```
+
+The installation commands in this README are written for Ubuntu/Debian-based systems. If the user is running Windows directly, they should first install WSL with Ubuntu or use an Ubuntu virtual machine, then run the commands inside the Linux terminal.
+
+This makes the script execution more consistent because the project uses Bash scripts, Terraform, Docker, AWS CLI, jq, and nmap.
+
 ## Required Tools and Installation Methods
 
 To run this automated deployment pipeline, the user needs to install the following tools:
