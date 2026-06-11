@@ -1,353 +1,282 @@
-# Automated Minecraft Java Server Deployment on AWS ECS Fargate
+# Minecraft ECS Automation Project
 
-## Background
+## Background: What Will We Do? How Will We Do It?
 
-This project automates the deployment of a Minecraft Java Edition server on AWS.
+I was recently hired by Acme Corp as a system administrator. I heard that the previous system administrator was caught by the information security team for watching adult content on a work computer, and he was fired in less than a week. Human Resources was very ruthless. Because of that, my manager told me that the most urgent task is to restore the Minecraft server, since the employees are becoming more and more impatient.
 
-In Course Project Part 1, the Minecraft server was deployed manually on an EC2 instance. In Part 2, the deployment is converted into an automated infrastructure pipeline. Terraform provisions the AWS resources, Docker packages the Minecraft server, Amazon ECR stores the Docker image, Amazon ECS Fargate runs the container, Amazon EFS stores Minecraft server data outside the container, and a Network Load Balancer exposes the server on TCP port `25565`.
+After reviewing the previous system administrator's project, I found that many tasks were completed manually. Therefore, I decided to change the manual deployment process into an automated deployment process.
 
-Because this implementation uses ECS Fargate instead of EC2, the public server endpoint is the Network Load Balancer DNS name instead of an EC2 instance public IP address.
+After my review, I found that the previous Minecraft server was deployed by going into the AWS Management Console, manually creating the server, configuring the network, setting up security groups, installing Java, downloading the Minecraft server, and starting the service. Running this full process manually is complicated and requires careful attention to many details. Therefore, my goal is to automate these steps.
 
-The final server is verified with:
+To achieve this, I decided to use tools that can automate the deployment process, including shell scripts, Terraform, Docker, and AWS CLI. The whole process does not require going into the AWS Management Console, and it also does not require SSH access to manually install Java, download the Minecraft server, or start the service on the server.
 
-```bash
-nmap -sV -Pn -p T:25565 <server_endpoint>
-```
+After researching the project more deeply, this project uses the following tools and technologies.
 
 ---
 
-## Architecture
+## Main Technologies Used in This Project
 
-This project provisions the following AWS resources:
+* Docker: I use Docker to package the Minecraft server into a container image. This allows the Minecraft server to run in a consistent environment and reduces problems caused by differences between machines.
 
-- Amazon ECR repository for the Minecraft Docker image
-- Amazon ECS Fargate cluster, task definition, and service
-- Amazon EFS file system for persistent Minecraft data
-- EFS mount targets in the default VPC subnets
-- Network Load Balancer listening on TCP port `25565`
-- Target group for routing Minecraft traffic to the ECS task
-- Security groups for ECS and EFS
-- CloudWatch log group for ECS container logs
+* Amazon ECR: ECR is used to store the Docker image. Since ECS Fargate needs to pull an image from a container registry, the locally built Minecraft image needs to be uploaded to ECR first.
 
----
+* Terraform: After doing research, I found that Terraform can create AWS resources through code. Therefore, I use Terraform to create the ECS, EFS, NLB, security groups, and logging resources required for this project.
 
-## Pipeline Diagram
+* Amazon ECS Fargate: ECS Fargate is used to run the Minecraft server container. Compared with EC2, this approach does not require manually managing servers or SSHing into an instance to configure the environment.
 
-```text
-Local machine / VM
-        |
-        v
-AWS Academy CLI credentials
-        |
-        v
-Terraform bootstrap creates ECR
-        |
-        v
-Docker builds Minecraft server image
-        |
-        v
-Docker pushes image to ECR
-        |
-        v
-Terraform provisions ECS Fargate, EFS, NLB, security groups, and logs
-        |
-        v
-ECS Fargate runs Minecraft container
-        |
-        v
-EFS is mounted at /data for persistent Minecraft world data
-        |
-        v
-NLB exposes TCP 25565 to users
-        |
-        v
-nmap verifies the Minecraft server
-```
+* Amazon EFS: EFS is used to store Minecraft server data. This allows the Minecraft world data to remain available even if the ECS task or container is restarted.
+
+* Network Load Balancer: NLB is used to forward external traffic to the Minecraft server. Minecraft uses TCP port 25565 by default, so this project exposes port 25565 through the NLB.
+
+* nmap: nmap is used to verify whether the Minecraft server has been successfully deployed. I use nmap to scan port 25565 and confirm that the server is in the `open` state.
 
 ---
 
-## Repository Structure
+## Project Deployment Logic
 
-```text
-minecraft-ecs-automation/
-├── README.md
-├── Dockerfile
-├── docker/
-│   └── entrypoint.sh
-├── terraform/
-│   ├── bootstrap/
-│   │   ├── provider.tf
-│   │   ├── variables.tf
-│   │   ├── main.tf
-│   │   └── outputs.tf
-│   └── infra/
-│       ├── provider.tf
-│       ├── variables.tf
-│       ├── data.tf
-│       ├── security_groups.tf
-│       ├── efs.tf
-│       ├── ecs.tf
-│       ├── nlb.tf
-│       └── outputs.tf
-├── scripts/
-│   ├── 01_bootstrap_ecr.sh
-│   ├── 02_build_push.sh
-│   ├── 03_apply_infra.sh
-│   ├── 04_test.sh
-│   ├── 05_redeploy_test.sh
-│   └── 99_destroy.sh
-└── .github/
-    └── workflows/
-        └── deploy.yml
-```
+After deciding which tools to use for this project, the next step is to define the automation workflow.
+
+I decided to follow the general workflow used by the previous system administrator, but replace the manual steps with automated scripts.
+
+The automated deployment process is divided into several stages.
+
+First, the user runs the `bootstrap_ecr.sh` script on the local computer. This script uses Terraform to create an Amazon ECR repository. ECR is used to store the Minecraft Docker image that will be built later.
+
+Next, the user runs the `build_push.sh` script. This script uses Docker to build the Minecraft server image locally and pushes that image to the ECR repository created in the previous step.
+
+Then, the user runs the `apply_infra.sh` script. This script uses Terraform to create the main AWS resources needed to run the Minecraft server, including ECS Fargate, EFS, Network Load Balancer, security groups, and CloudWatch Logs. ECS Fargate runs the Minecraft container, EFS stores the Minecraft data, NLB exposes port 25565, security groups control network access, and CloudWatch Logs stores the Minecraft container logs. Since this project does not SSH into the server, CloudWatch Logs is useful for checking whether the server started correctly or whether any errors occurred.
+
+After the infrastructure is created, the user runs the `test.sh` script. This script uses nmap to scan the NLB on port 25565 and confirms whether the Minecraft server has started successfully and can be accessed externally.
+
+Finally, the project also provides the `redeploy_test.sh` script. This script restarts the ECS service and runs nmap again to test whether the server comes back online. This step proves that the Minecraft server can recover after a restart, and because the server data is stored on EFS, the data will not be lost when the container restarts.
 
 ---
 
-## Requirements
+## Requirements: What Does the User Need to Configure?
 
-The following tools are required on the local machine or VM:
+Before running the automated pipeline, the user needs to prepare the local environment. This project is not deployed by manually clicking through the AWS Management Console. Instead, it uses the local terminal, shell scripts, Terraform, Docker, and AWS CLI to create AWS resources.
 
-- Git
-- AWS CLI
-- Terraform `>= 1.5.0`
-- Docker
-- nmap
-- jq
+First, the user needs an AWS account. This can be a regular AWS account or an AWS Academy Learner Lab account. Since this project creates ECR, ECS, EFS, Network Load Balancer, security groups, and CloudWatch Logs, the user must be able to access AWS through AWS CLI.
 
-The project was tested with:
+Second, the user needs to configure AWS CLI credentials. If AWS CLI is not configured correctly, Terraform and the scripts will not have permission to create AWS resources, and the deployment pipeline will fail.
 
-```text
-Terraform v1.15.5
-Docker 27.5.1
-Nmap 7.94SVN
-jq 1.7
-AWS CLI configured for us-east-1
-```
-
----
-
-## AWS Credentials
-
-This project was designed for AWS Academy Learner Lab.
-
-Start the Learner Lab, open the AWS Details section, and copy the AWS CLI credentials. Configure them locally in:
-
-```bash
-~/.aws/credentials
-```
-
-Example format:
-
-```ini
-[default]
-aws_access_key_id=YOUR_ACCESS_KEY
-aws_secret_access_key=YOUR_SECRET_KEY
-aws_session_token=YOUR_SESSION_TOKEN
-```
-
-Then configure the default region:
-
-```bash
-mkdir -p ~/.aws
-
-cat > ~/.aws/config <<'AWS_CONFIG'
-[default]
-region=us-east-1
-output=json
-AWS_CONFIG
-```
-
-Verify the AWS credentials:
+The user can verify AWS CLI access with:
 
 ```bash
 aws sts get-caller-identity
 ```
 
-Do not commit AWS credentials to GitHub.
+If this command returns the AWS account ID and user ARN, then AWS CLI credentials are configured correctly.
 
----
-
-## How to Run the Deployment Locally
-
-Clone the repository:
-
-```bash
-git clone <your-repository-url>
-cd minecraft-ecs-automation
-```
-
-### 1. Create the ECR repository
-
-```bash
-./scripts/01_bootstrap_ecr.sh
-```
-
-This script initializes Terraform in `terraform/bootstrap`, creates the ECR repository, and saves the ECR URI to `.ecr_uri`.
-
-### 2. Build and push the Docker image
-
-```bash
-./scripts/02_build_push.sh
-```
-
-This script logs in to Amazon ECR, builds the Minecraft Docker image, tags it, and pushes it to ECR as `latest`.
-
-### 3. Provision ECS, EFS, and NLB infrastructure
-
-```bash
-./scripts/03_apply_infra.sh
-```
-
-This script uses Terraform to create the ECS Fargate service, EFS storage, Network Load Balancer, target group, listener, security groups, and CloudWatch log group.
-
-At the end, it prints the Minecraft server address, for example:
+If using AWS Academy Learner Lab, the user needs to copy the following values from the AWS Details page:
 
 ```text
-mc-ecs-nlb-xxxxxxxx.elb.us-east-1.amazonaws.com:25565
+AWS Access Key ID
+AWS Secret Access Key
+AWS Session Token
+Region
 ```
 
-### 4. Verify the server with nmap
+Then run:
 
 ```bash
-./scripts/04_test.sh
+aws configure
 ```
 
-This script checks the ECS service status and runs:
-
-```bash
-nmap -sV -Pn -p T:25565 <nlb_dns_name>
-```
-
-Expected successful result:
+Enter the following values:
 
 ```text
-25565/tcp open  minecraft Minecraft 26.1.2
+AWS Access Key ID
+AWS Secret Access Key
+Default region name: us-east-1
+Default output format: json
+```
+
+Because AWS Academy uses temporary credentials, the user also needs to configure the session token:
+
+```bash
+export AWS_SESSION_TOKEN="your-session-token"
+```
+
+This project uses the following AWS region by default:
+
+```text
+us-east-1
 ```
 
 ---
 
-## How to Connect to the Minecraft Server
+## Required Tools and Installation Methods
 
-Use the Network Load Balancer DNS name and port `25565`.
+To run this automated deployment pipeline, the user needs to install the following tools:
 
-Example:
+* AWS CLI: Used to access AWS from the command line and allow Terraform to create AWS resources.
+* Terraform: Used to automatically create and manage AWS infrastructure.
+* Docker: Used to build the Minecraft server Docker image.
+* nmap: Used to test whether the Minecraft server's port 25565 is open.
+* jq: Used by scripts to process JSON output from AWS CLI.
+* Git: Used to manage the project code and push it to GitHub.
 
-```text
-mc-ecs-nlb-xxxxxxxx.elb.us-east-1.amazonaws.com:25565
-```
+The installation method depends on the user's operating system. The commands below are for Ubuntu/Debian-based Linux systems.
 
-In Minecraft Java Edition:
-
-1. Open Multiplayer.
-2. Select Direct Connection or Add Server.
-3. Enter the server address shown by Terraform.
-4. Connect to the server.
-
-If the Minecraft client is not available, use the required nmap verification:
+### Install AWS CLI
 
 ```bash
-nmap -sV -Pn -p T:25565 <nlb_dns_name>
+sudo apt update
+sudo apt install -y unzip curl
+
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
 ```
 
----
-
-## Docker Image
-
-The Docker image uses Java 25 because the current Minecraft server JAR requires a newer Java runtime.
-
-The container:
-
-- Downloads the Minecraft Java server JAR
-- Creates `/data` as the Minecraft working directory
-- Accepts the Minecraft EULA
-- Creates `server.properties` if it does not already exist
-- Starts the Minecraft server on TCP port `25565`
-
-The container entrypoint also handles shutdown signals. When the container receives `SIGTERM` or `SIGINT`, it sends the `stop` command to the Minecraft server so that the server can save the world before exiting.
-
----
-
-## Persistent Storage with EFS
-
-Minecraft is a stateful application because world data must survive restarts. In this project, the ECS task mounts Amazon EFS at:
-
-```text
-/data
-```
-
-The following Minecraft data is stored on EFS instead of inside the container image:
-
-- `world/`
-- `server.properties`
-- `eula.txt`
-- `logs/`
-- Minecraft runtime data
-
-This satisfies the extra-credit requirement to store ECS container data outside the container.
-
----
-
-## ECS Restart Test
-
-The project includes a controlled restart script:
+Check the installation:
 
 ```bash
-./scripts/05_redeploy_test.sh
+aws --version
 ```
 
-Because Minecraft is a stateful single-server application and the world data is stored on EFS, this script does not use a parallel rolling deployment. Instead, it performs a controlled scale-down and scale-up:
+### Install Terraform
 
-```text
-desired count 1 -> 0
-wait for tasks to stop
-desired count 0 -> 1
-wait for the task to run again
-run nmap against the same NLB endpoint
+```bash
+sudo apt update
+sudo apt install -y gnupg software-properties-common curl
+
+wget -O- https://apt.releases.hashicorp.com/gpg | \
+  gpg --dearmor | \
+  sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg > /dev/null
+
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
+https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
+  sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+sudo apt update
+sudo apt install -y terraform
 ```
 
-This avoids two Minecraft containers writing to the same world data at the same time.
+Check the installation:
 
-A successful restart test ends with:
-
-```text
-25565/tcp open  minecraft Minecraft 26.1.2
+```bash
+terraform -version
 ```
+
+### Install Docker
+
+```bash
+sudo apt update
+sudo apt install -y docker.io
+
+sudo systemctl enable docker
+sudo systemctl start docker
+```
+
+Add the current user to the Docker group:
+
+```bash
+sudo usermod -aG docker $USER
+```
+
+After running this command, log out and log back in, or restart the terminal session.
+
+Check the installation:
+
+```bash
+docker --version
+docker ps
+```
+
+### Install nmap
+
+```bash
+sudo apt update
+sudo apt install -y nmap
+```
+
+Check the installation:
+
+```bash
+nmap --version
+```
+
+### Install jq
+
+```bash
+sudo apt update
+sudo apt install -y jq
+```
+
+Check the installation:
+
+```bash
+jq --version
+```
+
+### Install Git
+
+```bash
+sudo apt update
+sudo apt install -y git
+```
+
+Check the installation:
+
+```bash
+git --version
+```
+
+### Verify All Required Tools
+
+After installing the tools, the user can verify everything with:
+
+```bash
+aws --version
+terraform -version
+docker --version
+nmap --version
+jq --version
+git --version
+```
+
+If all commands show version numbers, the local environment is ready.
 
 ---
 
-## Network Load Balancer
+## Are Credentials or Command Line Interfaces Required?
 
-The Minecraft server runs inside an ECS Fargate task. ECS task IP addresses are not stable, so this project exposes the server through a Network Load Balancer.
+Yes. This project requires AWS credentials and AWS CLI.
 
-The NLB listens on TCP port `25565` and forwards traffic to the ECS task.
+Since all AWS resources are created through scripts and Terraform, the user must configure AWS CLI credentials first. Otherwise, Terraform will fail when creating ECR, ECS, EFS, NLB, and security groups.
 
-Cross-zone load balancing is enabled so that the NLB can route traffic to the healthy Minecraft task even when DNS resolves to different NLB IP addresses.
+This project does not require the user to manually create resources in the AWS Management Console. It also does not require SSH access to the server. All operations are completed through the local terminal.
+
+In summary, the user needs:
+
+```text
+AWS account
+AWS CLI credentials
+AWS CLI command line access
+Terraform
+Docker
+nmap
+jq
+Git
+```
+
+Once these tools and credentials are ready, the user can run the scripts to complete the deployment.
 
 ---
 
-## GitHub Actions
+## Does the User Need Environment Variables or Other Configuration?
 
-This repository includes a GitHub Actions workflow at:
+If the user has already configured AWS credentials with `aws configure` and is using long-term credentials, then no additional environment variables are usually required.
 
-```text
-.github/workflows/deploy.yml
+If the user is using AWS Academy Learner Lab, the credentials are temporary, so the session token usually needs to be exported:
+
+```bash
+export AWS_SESSION_TOKEN="your-session-token"
 ```
 
-The workflow is configured to run on push to `main` or `master`, and it can also be started manually with `workflow_dispatch`.
-
-The workflow performs these steps:
-
-1. Check out the repository
-2. Configure AWS credentials
-3. Install required tools
-4. Set up Terraform
-5. Verify AWS identity
-6. Bootstrap ECR
-7. Build and push the Docker image
-8. Deploy ECS, EFS, and NLB infrastructure
-9. Test the Minecraft server with nmap
-
-Required GitHub Actions secrets:
+If GitHub Actions is used, the following repository secrets need to be configured in the GitHub repository:
 
 ```text
 AWS_ACCESS_KEY_ID
@@ -356,35 +285,432 @@ AWS_SESSION_TOKEN
 AWS_REGION
 ```
 
-For AWS Academy Learner Lab, the session token expires. If the lab session is restarted or the credentials expire, the GitHub Actions secrets must be updated.
+The region should be:
 
-Important note: this class project uses local Terraform state. If infrastructure has already been created locally, running the full GitHub Actions deployment in a separate runner may conflict with existing resources unless the state is managed remotely or the existing local deployment is destroyed first.
+```text
+AWS_REGION=us-east-1
+```
+
+These secrets allow the GitHub Actions runner to access AWS and run the same deployment pipeline automatically.
+
+For local manual deployment, GitHub Actions secrets are not required as long as the local AWS CLI credentials are configured correctly.
+
+---
+
+## Project Structure
+
+To make the project easier to understand, I separated the files based on their functions. The main project structure is:
+
+```text
+minecraft-ecs-automation/
+├── Dockerfile
+├── README.md
+├── .dockerignore
+├── .gitignore
+├── docker/
+│   └── entrypoint.sh
+├── scripts/
+│   ├── bootstrap_ecr.sh
+│   ├── build_push.sh
+│   ├── apply_infra.sh
+│   ├── test.sh
+│   ├── redeploy_test.sh
+│   └── destroy.sh
+├── terraform/
+│   ├── bootstrap/
+│   └── infra/
+└── .github/
+    └── workflows/
+        └── deploy.yml
+```
+
+The `scripts/` directory stores the automation scripts that the user needs to run. The `terraform/` directory stores the Terraform configuration files. The `docker/` directory stores the entrypoint script used when the Minecraft container starts. The `.github/workflows/` directory stores the GitHub Actions workflow configuration.
+
+---
+
+## Pipeline Diagram
+
+The overall automation workflow is:
+
+```text
+Local Computer
+        |
+        v
+bootstrap_ecr.sh
+Create Amazon ECR repository
+        |
+        v
+build_push.sh
+Build the Minecraft server Docker image
+and push the image to ECR
+        |
+        v
+apply_infra.sh
+Use Terraform to create ECS, EFS, NLB,
+security groups, and CloudWatch Logs
+        |
+        v
+test.sh
+Use nmap to test TCP port 25565 on the NLB
+and confirm that the Minecraft server is running
+        |
+        v
+redeploy_test.sh
+Restart the ECS service
+and use nmap again to confirm the server recovered
+```
+
+The order of this workflow is important. ECS Fargate needs to pull the Docker image from ECR, so the ECR repository must be created first. Then the Docker image can be built and pushed to ECR. After that, Terraform can create the ECS service and allow the ECS task to start the Minecraft server using that image.
+
+In other words, the dependency order is:
+
+```text
+ECR repository
+    ↓
+Docker image
+    ↓
+ECS task definition
+    ↓
+ECS service
+    ↓
+NLB external access
+    ↓
+nmap test
+```
+
+---
+
+## Commands to Run, with Explanations
+
+First, go into the project directory:
+
+```bash
+cd minecraft-ecs-automation
+```
+
+Then verify that AWS CLI can access AWS:
+
+```bash
+aws sts get-caller-identity
+aws configure get region
+```
+
+If these commands return valid results, the user can start running the automation scripts.
+
+---
+
+### Step 1: Create the ECR Repository
+
+```bash
+./scripts/bootstrap_ecr.sh
+```
+
+This script creates the Amazon ECR repository. ECR must be created first because ECS needs to pull the Docker image from ECR later.
+
+After the script succeeds, it creates a local file:
+
+```text
+.ecr_uri
+```
+
+This file stores the ECR repository URL. Later scripts read this file.
+
+---
+
+### Step 2: Build and Push the Docker Image
+
+```bash
+./scripts/build_push.sh
+```
+
+This script uses Docker to build the Minecraft server image and then pushes the image to the ECR repository created in the previous step.
+
+After this step is complete, ECS Fargate can pull this image from ECR and run the Minecraft server container.
+
+---
+
+### Step 3: Create AWS Infrastructure
+
+```bash
+./scripts/apply_infra.sh
+```
+
+This script uses Terraform to create the main AWS resources, including:
+
+```text
+ECS Fargate cluster
+ECS task definition
+ECS service
+EFS file system
+EFS mount targets
+Network Load Balancer
+Target group
+Security groups
+CloudWatch Logs
+```
+
+This is the core deployment step. It creates the cloud environment where the Minecraft server actually runs.
+
+After the script succeeds, it creates a local file:
+
+```text
+.nlb_dns
+```
+
+This file stores the DNS address of the Network Load Balancer. This address is used later for testing and connecting to the Minecraft server.
+
+---
+
+### Step 4: Test the Minecraft Server with nmap
+
+```bash
+./scripts/test.sh
+```
+
+This script uses nmap to scan port 25565 on the NLB and confirm that the Minecraft server can be accessed externally.
+
+The main test command is:
+
+```bash
+nmap -sV -Pn -p T:25565 <server-address>
+```
+
+A successful result should look like:
+
+```text
+25565/tcp open  minecraft
+```
+
+This means the Minecraft server is open through the Network Load Balancer.
+
+If the first test shows:
+
+```text
+25565/tcp filtered minecraft
+```
+
+it usually means the ECS task, Minecraft server, or NLB target is not fully ready yet. Wait 1 to 2 minutes and run the test again:
+
+```bash
+./scripts/test.sh
+```
+
+---
+
+### Step 5: Test Restart Recovery
+
+```bash
+./scripts/redeploy_test.sh
+```
+
+This script changes the ECS service desired count from 1 to 0, and then changes it back from 0 to 1. This simulates the Minecraft server container stopping and starting again.
+
+The purpose of this test is not to create a new architecture. Instead, it proves that the server can recover after a restart. Since the Minecraft data is stored in EFS, the data will not be lost when the container restarts.
+
+The script also runs nmap again at the end to confirm that the server is back online.
+
+---
+
+## Full Command Sequence
+
+For a full deployment, run the commands in this order:
+
+```bash
+cd minecraft-ecs-automation
+
+./scripts/bootstrap_ecr.sh
+./scripts/build_push.sh
+./scripts/apply_infra.sh
+./scripts/test.sh
+./scripts/redeploy_test.sh
+```
+
+This order is the main automation pipeline for the project.
+
+---
+
+## How to Connect to the Minecraft Server
+
+After `apply_infra.sh` succeeds, the Minecraft server address is saved in:
+
+```text
+.nlb_dns
+```
+
+The user can show the server address with:
+
+```bash
+cat .nlb_dns
+```
+
+Minecraft Java Server uses TCP port:
+
+```text
+25565
+```
+
+Therefore, the full Minecraft server address format is:
+
+```text
+<NLB-DNS-NAME>:25565
+```
+
+Example:
+
+```text
+mc-ecs-nlb-xxxxxxxx.elb.amazonaws.com:25565
+```
+
+If using the Minecraft client, enter this address in the Multiplayer server address field.
+
+If only verifying whether the server is online, use nmap:
+
+```bash
+nmap -sV -Pn -p T:25565 $(cat .nlb_dns)
+```
+
+A successful result should show:
+
+```text
+25565/tcp open  minecraft
+```
+
+This means the Minecraft server has been successfully deployed and can be accessed through the Network Load Balancer.
+
+---
+
+## GitHub Actions
+
+In addition to running the scripts locally, this project also includes a GitHub Actions workflow:
+
+```text
+.github/workflows/deploy.yml
+```
+
+The goal of this workflow is to automatically run the deployment process after a push to GitHub. It runs steps similar to the local scripts, including configuring AWS credentials, creating ECR, building and pushing the Docker image, deploying ECS/EFS/NLB, and running the nmap test.
+
+If using GitHub Actions, the following repository secrets must be configured first:
+
+```text
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+AWS_SESSION_TOKEN
+AWS_REGION
+```
+
+---
+
+## Extra Credit Features
+
+This project includes several extra credit features.
+
+First, this project uses a Docker image. The Minecraft server is packaged into a container image through the Dockerfile and uploaded to Amazon ECR.
+
+Related files include:
+
+```text
+Dockerfile
+docker/entrypoint.sh
+scripts/build_push.sh
+```
+
+Second, this project uses ECS Fargate instead of EC2. Because of this, the user does not need to SSH into a server to install Java, download the Minecraft server, or start the service manually.
+
+Related files include:
+
+```text
+terraform/infra/ecs.tf
+```
+
+Third, this project uses EFS to store Minecraft data outside the container. EFS is mounted into the container at:
+
+```text
+/data
+```
+
+This means that even if the ECS task or container restarts, the Minecraft world data can still be preserved.
+
+Related files include:
+
+```text
+terraform/infra/efs.tf
+terraform/infra/ecs.tf
+```
+
+Finally, this project includes a GitHub Actions workflow. This workflow can run the deployment pipeline automatically when code is pushed.
+
+Related files include:
+
+```text
+.github/workflows/deploy.yml
+```
 
 ---
 
 ## Cleanup
 
-A cleanup script is included:
+After testing the project, the user can run:
 
 ```bash
-./scripts/99_destroy.sh
+./scripts/destroy.sh
 ```
 
-This script destroys the ECS/EFS/NLB infrastructure and then destroys the ECR repository.
+This script deletes the AWS resources managed by Terraform, including ECS, EFS, NLB, ECR, security groups, and CloudWatch Logs.
 
-Do not run this script before grading unless the deployment no longer needs to be verified.
+Do not run this script before recording the demo because it will delete the deployed Minecraft server.
+
+Also, if some resources were created by GitHub Actions but the Terraform state was not saved locally, `destroy.sh` may not be able to delete those resources. In that case, the user needs to clean up the remaining resources manually with AWS CLI.
 
 ---
 
-## Sources
+## Demo Recording Suggestions
 
-- Minecraft Java Server Download: https://www.minecraft.net/en-us/download/server
-- Minecraft EULA: https://www.minecraft.net/en-us/eula
-- Terraform AWS Provider Documentation: https://registry.terraform.io/providers/hashicorp/aws/latest/docs
-- Amazon ECS Documentation: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html
-- Amazon ECR Documentation: https://docs.aws.amazon.com/AmazonECR/latest/userguide/what-is-ecr.html
-- Amazon EFS with ECS Documentation: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/efs-volumes.html
-- Network Load Balancer Documentation: https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html
-- GitHub Actions Documentation: https://docs.github.com/en/actions
-- GitHub Markdown Documentation: https://docs.github.com/en/get-started/writing-on-github
+When recording the video demo, the user can show the following commands:
 
+```bash
+cd minecraft-ecs-automation
+
+git remote -v
+git status --short
+git log --oneline -1
+
+aws sts get-caller-identity
+aws configure get region
+
+terraform -version
+docker --version
+nmap --version
+jq --version
+git --version
+
+ls
+ls scripts
+ls terraform
+ls .github/workflows
+
+./scripts/bootstrap_ecr.sh
+./scripts/build_push.sh
+./scripts/apply_infra.sh
+./scripts/test.sh
+./scripts/redeploy_test.sh
+```
+
+During the recording, explain that the whole process is completed through the terminal, shell scripts, Terraform, and AWS CLI. The AWS Management Console is not used, and there is no SSH access to any server.
+
+At the end, the most important output to show is the nmap result:
+
+```text
+25565/tcp open  minecraft
+```
+
+This result shows that the Minecraft server has been successfully deployed and can be accessed externally.
+
+---
+
+## Summary
+
+The goal of this project is to change the manual Minecraft server deployment process into an automated deployment process.
+
+By using Docker, Amazon ECR, Terraform, ECS Fargate, EFS, Network Load Balancer, and nmap, this project can automatically build the Minecraft server image, create AWS resources, start the service, test the port, and verify restart recovery.
+
+The whole process does not require the AWS Management Console, and it does not require SSH access to manually install or start the server.
