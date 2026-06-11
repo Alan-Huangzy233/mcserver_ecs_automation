@@ -93,12 +93,6 @@ Default region name: us-east-1
 Default output format: json
 ```
 
-Because AWS Academy uses temporary credentials, the user also needs to configure the session token:
-
-```bash
-export AWS_SESSION_TOKEN="your-session-token"
-```
-
 This project uses the following AWS region by default:
 
 ```text
