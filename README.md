@@ -295,12 +295,6 @@ Once these tools and credentials are ready, the user can run the scripts to comp
 
 If the user has already configured AWS credentials with `aws configure` and is using long-term credentials, then no additional environment variables are usually required.
 
-If the user is using AWS Academy Learner Lab, the credentials are temporary, so the session token usually needs to be exported:
-
-```bash
-export AWS_SESSION_TOKEN="your-session-token"
-```
-
 If GitHub Actions is used, the following repository secrets need to be configured in the GitHub repository:
 
 ```text
