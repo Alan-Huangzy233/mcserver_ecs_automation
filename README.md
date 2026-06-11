@@ -88,6 +88,7 @@ Enter the following values:
 ```text
 AWS Access Key ID
 AWS Secret Access Key
+AWS Session Token
 Default region name: us-east-1
 Default output format: json
 ```
