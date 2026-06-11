@@ -117,6 +117,19 @@ To run this automated deployment pipeline, the user needs to install the followi
 * jq: Used by scripts to process JSON output from AWS CLI.
 * Git: Used to manage the project code and push it to GitHub.
 
+## Required Tool Versions
+
+This project was tested with the following tool versions:
+
+* AWS CLI: 2.x
+* Terraform: 1.15.5
+* Docker: 27.5.1
+* nmap: 7.94SVN
+* jq: 1.7
+* Git: 2.45.2
+
+* Or newest version is also acceptable
+
 The installation method depends on the user's operating system. The commands below are for Ubuntu/Debian-based Linux systems.
 
 ### Install AWS CLI
@@ -714,3 +727,56 @@ The goal of this project is to change the manual Minecraft server deployment pro
 By using Docker, Amazon ECR, Terraform, ECS Fargate, EFS, Network Load Balancer, and nmap, this project can automatically build the Minecraft server image, create AWS resources, start the service, test the port, and verify restart recovery.
 
 The whole process does not require the AWS Management Console, and it does not require SSH access to manually install or start the server.
+
+## References / Sources
+
+During this project, I used official documentation and technical references to understand how each tool and AWS service should be configured.
+
+- Terraform AWS Provider Documentation: https://registry.terraform.io/providers/hashicorp/aws/latest/docs  
+  I used this documentation to understand how to define AWS resources with Terraform.
+
+- Terraform `aws_ecs_service`: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_service  
+  I used this resource to create and manage the ECS service.
+
+- Terraform `aws_ecs_task_definition`: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_task_definition  
+  I used this resource to define how the Minecraft container should run on ECS.
+
+- Amazon ECS Documentation: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html  
+
+- AWS Fargate Documentation: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html  
+
+- Amazon ECR Documentation: https://docs.aws.amazon.com/AmazonECR/latest/userguide/what-is-ecr.html  
+  I used this documentation to understand how ECR stores Docker images for ECS.
+
+- Amazon ECR Docker Push Documentation: https://docs.aws.amazon.com/AmazonECR/latest/userguide/docker-push-ecr-image.html  
+  I used this documentation to understand how to authenticate Docker with ECR and push images.
+
+- Docker Documentation: https://docs.docker.com/  
+
+- Dockerfile Reference: https://docs.docker.com/reference/dockerfile/  
+  I used this reference when writing the Dockerfile for the Minecraft server.
+
+- Amazon EFS Documentation: https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html  
+  I used this documentation to understand how EFS provides persistent file storage.
+
+- Amazon ECS EFS Volumes Documentation: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/efs-volumes.html  
+  I used this documentation to understand how to mount EFS into an ECS task.
+
+- Network Load Balancer Documentation: https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html  
+
+- Amazon ECS Logging and Monitoring: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-logging-monitoring.html  
+  I used this documentation to understand how ECS task logs can be stored and monitored.
+
+- ECS Logs to CloudWatch Documentation: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/specify-log-config.html  
+  I used this documentation to configure container logs with CloudWatch Logs.
+
+- AWS CLI Documentation: https://docs.aws.amazon.com/cli/  
+
+- AWS CLI Configuration Documentation: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html  
+
+- Nmap Reference Guide: https://nmap.org/book/man.html  
+
+- GitHub Actions Documentation: https://docs.github.com/en/actions  
+  I used this documentation to create the optional GitHub Actions deployment workflow.
+
+- GitHub Actions Secrets Documentation: https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions  
