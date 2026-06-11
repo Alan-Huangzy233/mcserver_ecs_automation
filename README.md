@@ -133,12 +133,12 @@ To run this automated deployment pipeline, the user needs to install the followi
 
 This project was tested with the following tool versions:
 
-* AWS CLI: 2.x
-* Terraform: 1.15.5
-* Docker: 27.5.1
+* AWS CLI: 2.35.2
+* Terraform: 1.15.6
+* Docker: 29.1.3
 * nmap: 7.94SVN
 * jq: 1.7
-* Git: 2.45.2
+* Git: 2.43.0
 
 * Or newest version is also acceptable
 
