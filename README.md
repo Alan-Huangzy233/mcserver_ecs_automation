@@ -1,6 +1,6 @@
 # Minecraft ECS Automation Project
 
-## Background: What Will We Do? How Will We Do It? (Fictional plot）
+## Background: What Will We Do? How Will We Do It? (Fictional plot, use for course work）
 
 I was recently hired by Acme Corp as a system administrator. I heard that the previous system administrator was caught by the information security team for watching adult content on a work computer, and he was fired in less than a week. Human Resources was very ruthless. Because of that, my manager told me that the most urgent task is to restore the Minecraft server, since the employees are becoming more and more impatient.
 
